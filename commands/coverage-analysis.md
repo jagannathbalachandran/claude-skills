@@ -13,6 +13,8 @@ Usage: `/coverage-analysis <app-path> <test-path>`
 
 ## Phase 1 — Application Feature Inventory
 
+**Complete this phase fully before moving to Phase 2. Do not begin scenario generation or combination analysis until every feature area has been identified.**
+
 Explore the application source at the first path provided. Read from:
 - Controllers / route handlers (every URL and user action the app exposes)
 - Service / use-case layer (business logic variations and edge cases)
@@ -26,8 +28,10 @@ For each functional area identified, record:
 2. Every user-facing capability (actions a customer or admin can perform)
 3. Key variants — who can do it (guest vs. registered vs. admin), what distinct option types exist
 4. Expected success states and explicit failure/error states
+5. Source code paths — the controller or route file, the service/use-case layer directory, and the domain/model directory that implement this feature (relative to the app root). For plugin-based features record the plugin directory. These paths are carried into the report so readers can trace any gap directly to the implementing code.
 
-**Counting rule:** Count each distinct *type* of option once — not every combination. Three payment methods × four shipping methods = 3 payment scenarios + 4 shipping scenarios (7 total), not 12.
+**Completeness check before proceeding:** Re-scan the source for areas not yet listed. Each distinct sub-system should appear as its own feature area even if it surfaces inside a larger flow. Plugin and module directories, secondary user roles, and admin-only workflows are commonly missed in a first pass — verify each has been captured.
+
 
 ---
 
@@ -50,12 +54,14 @@ Also audit every page object / helper: list methods that are defined but never c
 
 ## Phase 3 — Scenario Generation
 
-For each feature area from Phase 1, generate the complete list of independently testable scenarios using this structure:
+**Work through every feature area recorded in Phase 1 in turn. Do not skip any area. Generate all scenarios for one area before moving to the next.**
+
+For each feature area, generate the complete list of independently testable scenarios using this structure:
 
 ```
 Happy paths
 ├── Primary success flow (most common user journey)
-└── Each significant variant (one per option type, not every combination)
+└── Each significant variant
 
 Negative / error paths
 ├── Missing required input → validation error
@@ -64,12 +70,12 @@ Negative / error paths
 └── Unauthorised access (action requires login; guest attempts it)
 
 State-dependent paths
-├── Action on empty state (empty cart, no addresses, no orders)
+├── Action on empty state
 ├── Action on populated/existing state
 └── Persistence (data survives navigation, logout/re-login)
 ```
 
-Apply the "one of each type" rule throughout — do not generate combinatorial scenarios unless the *interaction* between two options is specifically what is under test.
+**Applying all-pairs testing within each feature area:** For features that have two or more independent parameters (each with two or more values), use the all-pairs rule — https://en.wikipedia.org/wiki/All-pairs_testing — to identify the minimum set of combinations that covers every value of every parameter paired with every value of every other parameter at least once. This replaces exhaustive combinatorial testing, not single-parameter scenarios. For features with only one parameter axis, list each distinct value as its own scenario.
 
 Assign each scenario a priority:
 
@@ -108,16 +114,29 @@ Generated: [date]
 App: [app path]
 Tests: [test path]
 Total tests: N
-Overall coverage: X%
+Overall coverage: X% (covered / total across ALL feature areas)
 
 ## Coverage Summary
-[table: Feature Area | Scenarios | Covered | Missing | Coverage %]
+[table: # | Feature Area | Scenarios | Covered | Missing | Coverage % | Source Code]
+
+Every feature area identified in Phase 1 must appear as a row in this table — including those with zero tests.
+Do not omit any area.
+
+The **Source Code** column is a single column containing all relevant paths for that feature, labelled by layer and separated by `<br>`. Include only the layers that exist for each feature. Use paths relative to the app root.
+
+Example cell value: `**Controller:** src/controllers/CheckoutController.cs<br>**Service:** src/services/Orders/<br>**Domain:** src/core/Domain/Orders/`
+
+Use whichever layer labels best match the technology of the application being analysed: `Controller`, `Route`, `UI`, `API`, `Service`, `Domain`, `Model`, `Plugin`. Every row must have at least one path — never leave the Source Code column empty.
 
 ## Detailed Coverage by Feature
-[For each area:]
+[For each area from Phase 1:]
 ### N. Feature Name — X% (covered/total)
-**Covered** — bulleted list with ✓
-**Missing** — bulleted list
+**Source:** `<labelled paths, same format as Coverage Summary column>`
+**Covered** — bulleted list with ✓  (omit section if nothing covered)
+**Missing** — bulleted list of independently testable scenarios not yet covered
+
+For areas with no existing tests write at minimum 3–5 of the most important missing scenarios.
+Do not skip any area. Every feature area from Phase 1 must have its own sub-section here.
 
 ## Top Priority Scenarios
 ### P0 — Critical
